@@ -20,7 +20,7 @@ git clone https://github.com/R4yya/Postgres-Monitor-Bot.git
 ```
 Install the required Python packages:
 ```sh
-pip install python-telegram-bot psycopg2 dotenv
+pip install python-telegram-bot psycopg2 python-dotenv
 ```
 Set up your PostgreSQL. Also add your bot key and dase info for connection in .env file
 
