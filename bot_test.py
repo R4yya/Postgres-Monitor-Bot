@@ -11,6 +11,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+
 selected_database = None
 selected_metric = None
 
@@ -90,17 +91,22 @@ async def select_option(update: Update, context: CallbackContext):
         metrics_menu = create_metrics_menu()
         await query.message.edit_text("Select a metric:", reply_markup=metrics_menu)
     elif query.data == "back":
-        selected_database = None
-        selected_metric = None
-        database_list = get_database_list()
-        buttons = create_database_buttons(database_list)
-        await query.message.edit_text("Select a database:", reply_markup=buttons)
+        if selected_metric:
+            selected_metric = None
+            metrics_menu = create_metrics_menu()
+            await query.message.edit_text("Select a metric:", reply_markup=metrics_menu)
+        else:
+            selected_database = None
+            database_list = get_database_list()
+            buttons = create_database_buttons(database_list)
+            await query.message.edit_text("Select a database:", reply_markup=buttons)
     elif query.data == "active_sessions":
         selected_metric = query.data
         if selected_database:
             active_sessions_count = get_active_sessions_count(selected_database)
             message = f"Active sessions in {selected_database}: {active_sessions_count}"
-            await query.message.edit_text(message)
+            back_button = InlineKeyboardButton("Back", callback_data="back")
+            await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
             await query.message.edit_text("Please select a database first.")
 
