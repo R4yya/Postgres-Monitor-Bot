@@ -4,76 +4,66 @@ import os
 import psycopg2
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext, ConversationHandler
-
-load_dotenv()
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
-
 )
 
-def connect_to_database():
-    connection = psycopg2.connect(
-        host=os.getenv('HOST'),
-        database=os.getenv('DATABASE_NAME'),
-        user=os.getenv('USER'),
-        password=os.getenv('PASSWORD')
-    )
-    return connection
+selected_database = None
+selected_metric = None
+
+
+def create_db_connection():
+    try:
+        return psycopg2.connect(
+            host=os.getenv('HOST'),
+            database=os.getenv('DATABASE_NAME'),
+            user=os.getenv('USER'),
+            password=os.getenv('PASSWORD')
+        )
+    except Exception as e:
+        print(str(e))
+
+
+def execute_sql_query(connection, query):
+    with connection, connection.cursor() as cursor:
+        cursor.execute(query)
+        return cursor.fetchall()
+
 
 def get_database_list():
     try:
-        connection = connect_to_database()
-        cursor = connection.cursor()
+        connection = create_db_connection()
+        query = "SELECT datname FROM pg_database;"
+        database_list = execute_sql_query(connection, query)
 
-        cursor.execute("SELECT datname FROM pg_database;")
-        result = cursor.fetchall()
-
-        if result:
-            database_list = [row[0] for row in result]
-            return database_list
+        if database_list:
+            return [row[0] for row in database_list]
         else:
             return []
 
     except Exception as e:
-        return str(e)
-    finally:
-        if connection:
-            connection.close()
+        print(str(e))
+
 
 def get_active_sessions_count(database_name):
     try:
-        connection = connect_to_database()
-        cursor = connection.cursor()
-
+        connection = create_db_connection()
         query = f"SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '{database_name}';"
-        cursor.execute(query)
-
-        result = cursor.fetchone()
+        result = execute_sql_query(connection, query)
 
         if result:
-            active_sessions_count = result[0]
-            return active_sessions_count
+            return result[0][0]
         else:
             return 0
 
     except Exception as e:
-        return str(e)
-    finally:
-        if connection:
-            connection.close()
+        print(str(e))
 
-def select_metric_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("Active Sessions", callback_data="select_metric:active_sessions")]
-    ]
 
-    return InlineKeyboardMarkup(keyboard)
-
-def select_database_buttons():
-    database_list = get_database_list()
+def create_database_buttons(database_list):
     buttons = []
 
     for database in database_list:
@@ -82,84 +72,64 @@ def select_database_buttons():
 
     return InlineKeyboardMarkup(buttons)
 
-def go_back_button():
-    keyboard = [
-        [InlineKeyboardButton("Назад", callback_data="go_back")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+
+def create_metrics_menu():
+    metrics_menu = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Active Sessions", callback_data="active_sessions")],
+        [InlineKeyboardButton("Back", callback_data="back")]
+    ])
+    return metrics_menu
+
+
+async def select_option(update: Update, context: CallbackContext):
+    query = update.callback_query
+    global selected_database, selected_metric
+
+    if query.data.startswith("select_db:"):
+        selected_database = query.data.split(":")[1]
+        metrics_menu = create_metrics_menu()
+        await query.message.edit_text("Select a metric:", reply_markup=metrics_menu)
+    elif query.data == "back":
+        selected_database = None
+        selected_metric = None
+        database_list = get_database_list()
+        buttons = create_database_buttons(database_list)
+        await query.message.edit_text("Select a database:", reply_markup=buttons)
+    elif query.data == "active_sessions":
+        selected_metric = query.data
+        if selected_database:
+            active_sessions_count = get_active_sessions_count(selected_database)
+            message = f"Active sessions in {selected_database}: {active_sessions_count}"
+            await query.message.edit_text(message)
+        else:
+            await query.message.edit_text("Please select a database first.")
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! I'm your PostgreSQL database monitoring bot")
 
-async def monitor(update: Update, context: CallbackContext):
-    context.user_data['selected_metric'] = None
-    await update.message.reply_text("Select a metric to view:", reply_markup=select_metric_keyboard())
 
-    return SELECT_METRIC
+async def stats(update: Update, context: CallbackContext):
+    database_list = get_database_list()
+    if database_list:
+        message = "Select a database:"
+        buttons = create_database_buttons(database_list)
+        await update.message.reply_text(message, reply_markup=buttons)
+    else:
+        await update.message.reply_text("No databases found.")
 
-async def select_database_button(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    selected_metric = query.data.split(":")[1]
-
-    if selected_metric == "active_sessions":
-        context.user_data['selected_metric'] = selected_metric
-        context.user_data['selected_database'] = None
-
-        keyboard = InlineKeyboardMarkup([
-            [select_database_buttons()],
-            [go_back_button()]
-        ])
-
-        await query.message.edit_text(
-            text="Select a database to view active sessions:",
-            reply_markup=keyboard
-        )
-
-        return SELECT_DATABASE
-
-    return ConversationHandler.END
-
-async def button(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    selected_data = query.data
-
-    if selected_data == "go_back":
-        await query.message.edit_text("Select a metric to view:", reply_markup=select_metric_keyboard())
-        return SELECT_METRIC
-
-    selected_database = selected_data.split(":")[1]
-
-    if context.user_data['selected_metric'] == "active_sessions":
-        context.user_data['selected_database'] = selected_database
-
-        active_sessions_count = get_active_sessions_count(selected_database)
-        message = f"Active sessions in {selected_database}: {active_sessions_count}"
-
-        await query.message.edit_text(message, reply_markup=go_back_button())
-
-    return ConversationHandler.END
 
 if __name__ == '__main__':
+    load_dotenv()
     application = ApplicationBuilder().token(os.getenv('API_TOKEN')).build()
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
-    SELECT_METRIC, SELECT_DATABASE = range(2)
+    monitor_handler = CommandHandler('stats', stats)
+    application.add_handler(monitor_handler)
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('monitor', monitor)],
-        states={
-            SELECT_METRIC: [CallbackQueryHandler(select_database_button)],
-            SELECT_DATABASE: [CallbackQueryHandler(button)]
-        },
-        fallbacks=[]
-    )
-
-    application.add_handler(conv_handler)
+    select_option_handler = CallbackQueryHandler(select_option)
+    application.add_handler(select_option_handler)
 
     application.run_polling()
