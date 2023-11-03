@@ -49,10 +49,25 @@ def get_database_list():
         print(str(e))
 
 
-def get_active_sessions_count(database_name):
+def get_active_sessions(database_name):
     try:
         connection = create_db_connection()
         query = f"SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '{database_name}';"
+        result = execute_sql_query(connection, query)
+
+        if result:
+            return result[0][0]
+        else:
+            return 0
+
+    except Exception as e:
+        print(str(e))
+
+
+def get_sessions_with_lwlock(database_name):
+    try:
+        connection = create_db_connection()
+        query = f"SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '{database_name}' AND wait_event LIKE 'LWLock%';"
         result = execute_sql_query(connection, query)
 
         if result:
@@ -77,6 +92,7 @@ def create_database_buttons(database_list):
 def create_metrics_menu():
     metrics_menu = InlineKeyboardMarkup([
         [InlineKeyboardButton("Active Sessions", callback_data="active_sessions")],
+        [InlineKeyboardButton("Sessions with LWLock", callback_data="sessions_with_lwlock")],
         [InlineKeyboardButton("Back", callback_data="back")]
     ])
     return metrics_menu
@@ -103,8 +119,17 @@ async def select_option(update: Update, context: CallbackContext):
     elif query.data == "active_sessions":
         selected_metric = query.data
         if selected_database:
-            active_sessions_count = get_active_sessions_count(selected_database)
+            active_sessions_count = get_active_sessions(selected_database)
             message = f"Active sessions in {selected_database}: {active_sessions_count}"
+            back_button = InlineKeyboardButton("Back", callback_data="back")
+            await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
+        else:
+            await query.message.edit_text("Please select a database first.")
+    elif query.data == "sessions_with_lwlock":
+        selected_metric = query.data
+        if selected_database:
+            sessions_with_lwlock_count = get_sessions_with_lwlock(selected_database)
+            message = f"Sessions with LWLock in {selected_database}: {sessions_with_lwlock_count}"
             back_button = InlineKeyboardButton("Back", callback_data="back")
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
