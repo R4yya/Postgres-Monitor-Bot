@@ -5,9 +5,8 @@ from database import (
     create_db_connection, execute_sql_query, get_database_list,
     get_active_sessions, terminate_all_sessions, get_sessions_with_lwlock,
     get_longest_transaction_duration
-
 )
-from utils import get_cpu_usage, get_disk_free_space
+from utils import get_cpu_usage, get_disk_space_info
 
 # Global variables
 selected_database = None
@@ -52,9 +51,9 @@ async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
 
 
 async def check_disk_space(context: CallbackContext, min_disk_space=1):
-    disk_space = get_disk_free_space()
-    if disk_space < min_disk_space:
-        await context.bot.send_message(context.job.chat_id, f'Low disk space! - {disk_space:.2f}Gb')
+    free_space, total_space, percentage_space = get_disk_space_info()
+    if free_space < min_disk_space:
+        await context.bot.send_message(context.job.chat_id, f'Low disk space! - {free_space:.2f}Gb')
 
 
 async def select_option(update: Update, context: CallbackContext):
@@ -176,9 +175,9 @@ async def kill(update: Update, context: CallbackContext):
 
 async def cpu(update: Update, context: CallbackContext):
     cpu_percentage = get_cpu_usage()
-    await update.message.reply_text(f'CPU usage: {cpu_percentage}%')
+    await update.message.reply_text(f'CPU information:\nCPU usage: {cpu_percentage}%')
 
 
 async def disk(update: Update, context: CallbackContext):
-    disk_space = get_disk_free_space()
-    await update.message.reply_text(f'Free disk space: {disk_space:.2f} GB')
+    free_space, total_space, percentage_space = get_disk_space_info()
+    await update.message.reply_text(f'*Disk space:*\n\tFree: {free_space:.2f} GB\n\tTotal: {total_space:.2f} GB\n\tUsage: {percentage_space}%', parse_mode= 'Markdown')
