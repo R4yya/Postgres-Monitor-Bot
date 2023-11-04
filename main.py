@@ -8,7 +8,7 @@ from telegram.ext import (
 from telegram_bot import (
     start, metrics, database,
     kill, cpu, disk,
-    unknown, select_option
+    ram, unknown, select_option
 )
 
 
@@ -35,6 +35,9 @@ def main():
 
     disk_handler = CommandHandler('disk', disk)
     application.add_handler(disk_handler)
+
+    ram_handler = CommandHandler('ram', ram)
+    application.add_handler(ram_handler)
 
     unknown_handler = MessageHandler(filters.Command(False), unknown)
     application.add_handler(unknown_handler)

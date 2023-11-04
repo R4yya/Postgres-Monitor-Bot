@@ -5,7 +5,7 @@ from database import (
     get_database_list, get_active_sessions, kill_all_sessions,
     get_sessions_with_lwlock, get_longest_transaction_duration
 )
-from utils import get_cpu_usage, get_disk_space_info
+from utils import get_cpu_usage, get_disk_space_info, get_virtual_memory_info
 
 # Global variables
 selected_database = None
@@ -173,3 +173,8 @@ async def cpu(update: Update, context: CallbackContext):
 async def disk(update: Update, context: CallbackContext):
     free_space, total_space, percentage_space = get_disk_space_info()
     await update.message.reply_text(f'*Disk space:*\n\tFree: {free_space:.2f} GB\n\tTotal: {total_space:.2f} GB\n\tUsage: {percentage_space}%', parse_mode= 'Markdown')
+
+
+async def ram(update: Update, context: CallbackContext):
+    available_memory, total_memory, percent_memory = get_virtual_memory_info()
+    await update.message.reply_text(f'*Memory information:*\n\tAvailable: {available_memory:.2f} GB\n\tTotal: {total_memory:.2f} GB\n\tUsage: {percent_memory}%', parse_mode= 'Markdown')
