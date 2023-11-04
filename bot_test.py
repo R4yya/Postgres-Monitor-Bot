@@ -71,6 +71,17 @@ def get_active_sessions(database_name):
         return f'An error occurred while retrieving session information.'
 
 
+def terminate_all_sessions(database_name):
+    try:
+        connection = create_db_connection()
+        query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{database_name}';"
+        execute_sql_query(connection, query)
+        return f'All sessions in {database_name} have been terminated.'
+    except Exception as e:
+        logging.error(f'An error occurred: {str(e)}')
+        return f'An error occurred while terminating sessions.'
+
+
 def get_sessions_with_lwlock(database_name):
     try:
         connection = create_db_connection()
@@ -135,20 +146,20 @@ def create_metrics_menu():
     return metrics_menu
 
 
-async def check_active_sessions(context: CallbackContext, max_active_sessions=1):
+async def check_active_sessions(context: CallbackContext, max_active_sessions=100):
     if selected_database:
         active_sessions_count = int(get_active_sessions(selected_database))
         if active_sessions_count > max_active_sessions:
             await context.bot.send_message(context.job.chat_id, f'Too many active sessions in the database! - {active_sessions_count}')
 
 
-async def check_cpu_usage(context: CallbackContext, max_cpu_usage=1):
+async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
     cpu_percent = get_cpu_usage()
     if cpu_percent > max_cpu_usage:
         await context.bot.send_message(context.job.chat_id, f'High CPU usage! - {max_cpu_usage}%')
 
 
-async def check_disk_space(context: CallbackContext, min_disk_space=50):
+async def check_disk_space(context: CallbackContext, min_disk_space=1):
     disk_space = get_disk_free_space()
     if disk_space < min_disk_space:
         await context.bot.send_message(context.job.chat_id, f'Low disk space! - {disk_space:.2f}Gb')
@@ -229,6 +240,20 @@ async def stats(update: Update, context: CallbackContext):
         await update.message.reply_text('No databases found.')
 
 
+async def terminate_all_sessions(update: Update, context: CallbackContext):
+    if selected_database:
+        try:
+            connection = create_db_connection()
+            query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{selected_database}';"
+            execute_sql_query(connection, query)
+            await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
+        except Exception as e:
+            logging.error(f'An error occurred: {str(e)}')
+            await update.message.reply_text(f'An error occurred while terminating sessions.')
+    else:
+        await update.message.reply_text('Please select a database first.')
+
+
 async def cpu(update: Update, context: CallbackContext):
     cpu_usage = get_cpu_usage()
     await update.message.reply_text(f'CPU usage: {cpu_usage}%')
@@ -250,6 +275,9 @@ if __name__ == '__main__':
 
     monitor_handler = CommandHandler('stats', stats)
     application.add_handler(monitor_handler)
+
+    terminate_sessions_handler = CommandHandler('kill', terminate_all_sessions)
+    application.add_handler(terminate_sessions_handler)
 
     cpu_handler = CommandHandler('cpu', cpu)
     application.add_handler(cpu_handler)
