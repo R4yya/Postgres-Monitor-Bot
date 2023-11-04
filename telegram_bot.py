@@ -160,7 +160,7 @@ async def database(update: Update, context: CallbackContext):
         await update.message.reply_text('No databases found.')
 
 
-async def terminate_all_sessions(update: Update, context: CallbackContext):
+async def kill(update: Update, context: CallbackContext):
     if selected_database:
         try:
             connection = create_db_connection()
@@ -168,7 +168,7 @@ async def terminate_all_sessions(update: Update, context: CallbackContext):
             execute_sql_query(connection, query)
             await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
         except Exception as e:
-            
+
             await update.message.reply_text(f'An error occurred while terminating sessions.')
     else:
         await update.message.reply_text('Please select a database first.')
