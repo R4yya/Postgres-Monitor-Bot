@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 import logging
-import os
 import psycopg2
+import psutil
+import os
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext
@@ -99,6 +100,17 @@ def get_longest_transaction_duration(database_name):
         return f'An error occurred while retrieving transaction information.'
 
 
+def get_cpu_usage():
+    cpu_percent = psutil.cpu_percent(interval=1)
+    return f"CPU usage: {cpu_percent}%"
+
+
+def get_disk_free_space():
+    disk = psutil.disk_usage('/')
+    free_space = disk.free / (1024 ** 3)
+    return f"Free disk space: {free_space:.2f} GB"
+
+
 def create_database_buttons(database_list):
     buttons = []
 
@@ -184,6 +196,16 @@ async def stats(update: Update, context: CallbackContext):
         await update.message.reply_text('No databases found.')
 
 
+async def cpu(update: Update, context: CallbackContext):
+    cpu_usage = get_cpu_usage()
+    await update.message.reply_text(cpu_usage)
+
+
+async def disk(update: Update, context: CallbackContext):
+    disk_space = get_disk_free_space()
+    await update.message.reply_text(disk_space)
+
+
 if __name__ == '__main__':
     # load .env variables
     load_dotenv()
@@ -195,6 +217,12 @@ if __name__ == '__main__':
 
     monitor_handler = CommandHandler('stats', stats)
     application.add_handler(monitor_handler)
+
+    cpu_handler = CommandHandler('cpu', cpu)
+    application.add_handler(cpu_handler)
+
+    disk_handler = CommandHandler('disk', disk)
+    application.add_handler(disk_handler)
 
     select_option_handler = CallbackQueryHandler(select_option)
     application.add_handler(select_option_handler)
