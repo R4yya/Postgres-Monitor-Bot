@@ -5,7 +5,10 @@ import psutil
 import os
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder, ContextTypes, CommandHandler,
+    CallbackQueryHandler, CallbackContext, MessageHandler,
+    filters, Job)
 
 # Logger
 logging.basicConfig(
@@ -102,13 +105,13 @@ def get_longest_transaction_duration(database_name):
 
 def get_cpu_usage():
     cpu_percent = psutil.cpu_percent(interval=1)
-    return f"CPU usage: {cpu_percent}%"
+    return cpu_percent
 
 
 def get_disk_free_space():
     disk = psutil.disk_usage('/')
     free_space = disk.free / (1024 ** 3)
-    return f"Free disk space: {free_space:.2f} GB"
+    return free_space
 
 
 def create_database_buttons(database_list):
@@ -130,6 +133,25 @@ def create_metrics_menu():
     ])
 
     return metrics_menu
+
+
+async def check_active_sessions(context: CallbackContext, max_active_sessions=1):
+    if selected_database:
+        active_sessions_count = int(get_active_sessions(selected_database))
+        if active_sessions_count > max_active_sessions:
+            await context.bot.send_message(context.job.chat_id, f'Too many active sessions in the database! - {active_sessions_count}')
+
+
+async def check_cpu_usage(context: CallbackContext, max_cpu_usage=1):
+    cpu_percent = get_cpu_usage()
+    if cpu_percent > max_cpu_usage:
+        await context.bot.send_message(context.job.chat_id, f'High CPU usage! - {max_cpu_usage}%')
+
+
+async def check_disk_space(context: CallbackContext, min_disk_space=50):
+    disk_space = get_disk_free_space()
+    if disk_space < min_disk_space:
+        await context.bot.send_message(context.job.chat_id, f'Low disk space! - {disk_space:.2f}Gb')
 
 
 async def select_option(update: Update, context: CallbackContext):
@@ -185,9 +207,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text="Hello! I'm your PostgreSQL database monitoring bot"
     )
 
+    context.job_queue.run_repeating(check_active_sessions, interval=15, first=0, chat_id=update.message.chat_id)
+    context.job_queue.run_repeating(check_cpu_usage, interval=15, first=0, chat_id=update.message.chat_id)
+    context.job_queue.run_repeating(check_disk_space, interval=15, first=0, chat_id=update.message.chat_id)
+
 
 async def unknown(update: Update, context: CallbackContext):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Sorry, I didn't understand that command."
+    )
 
 
 async def stats(update: Update, context: CallbackContext):
@@ -202,12 +231,12 @@ async def stats(update: Update, context: CallbackContext):
 
 async def cpu(update: Update, context: CallbackContext):
     cpu_usage = get_cpu_usage()
-    await update.message.reply_text(cpu_usage)
+    await update.message.reply_text(f'CPU usage: {cpu_usage}%')
 
 
 async def disk(update: Update, context: CallbackContext):
-    disk_space = get_disk_free_space()
-    await update.message.reply_text(disk_space)
+    disk_space = get_disk_free_space()[0]
+    await update.message.reply_text(f'Free disk space: {disk_space:.2f} GB')
 
 
 if __name__ == '__main__':
@@ -219,9 +248,6 @@ if __name__ == '__main__':
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
-    unknown_handler = MessageHandler(filters.Command(False), unknown)
-    application.add_handler(unknown_handler)
-
     monitor_handler = CommandHandler('stats', stats)
     application.add_handler(monitor_handler)
 
@@ -230,6 +256,9 @@ if __name__ == '__main__':
 
     disk_handler = CommandHandler('disk', disk)
     application.add_handler(disk_handler)
+
+    unknown_handler = MessageHandler(filters.Command(False), unknown)
+    application.add_handler(unknown_handler)
 
     select_option_handler = CallbackQueryHandler(select_option)
     application.add_handler(select_option_handler)
