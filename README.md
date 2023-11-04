@@ -36,5 +36,5 @@ python -m main.py
 ```
 Usage
 Start the bot on Telegram and follow the instructions to configure the database monitoring settings.
-## BTW
+## Links
 You can check the Telegram Database Monitor Bot on [Monitor Bot](https://t.me/postgres_monitor_bot)
