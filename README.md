@@ -28,7 +28,7 @@ Install the required Python packages:
 ```sh
 pip install -r requirements.txt
 ```
-Set up your PostgreSQL. Also add your bot key and dase info for connection in .env file
+Set up your PostgreSQL database and dase info for connection in .env file
 
 Run the bot:
 ```sh
