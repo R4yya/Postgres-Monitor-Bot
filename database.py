@@ -77,7 +77,7 @@ def terminate_all_sessions(database_name):
 def get_sessions_with_lwlock(database_name):
     try:
         connection = create_db_connection()
-        query = f"SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '{database_name}' AND wait_event LIKE 'LWLock%';"
+        query = f"SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '{database_name}' AND wait_event LIKE 'LWLock';"
         result = execute_sql_query(connection, query)
 
         if result:
