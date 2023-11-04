@@ -6,15 +6,10 @@ from telegram.ext import (
     MessageHandler, filters
 )
 from telegram_bot import (
-    start, stats, terminate_all_sessions,
-    cpu, disk, unknown,
-    select_option
+    start, metrics, database,
+    terminate_all_sessions, cpu, disk,
+    unknown, select_option
 )
-
-
-# Global variables
-selected_database = None
-selected_metric = None
 
 
 def main():
@@ -26,8 +21,11 @@ def main():
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
-    monitor_handler = CommandHandler('stats', stats)
-    application.add_handler(monitor_handler)
+    database_handler = CommandHandler('database', database)
+    application.add_handler(database_handler)
+
+    metrics_handler = CommandHandler('metrics', metrics)
+    application.add_handler(metrics_handler)
 
     terminate_sessions_handler = CommandHandler('kill', terminate_all_sessions)
     application.add_handler(terminate_sessions_handler)
