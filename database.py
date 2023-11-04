@@ -63,7 +63,7 @@ def get_active_sessions(database_name):
         return f'An error occurred while retrieving session information.'
 
 
-def terminate_all_sessions(database_name):
+def kill_all_sessions(database_name):
     try:
         connection = create_db_connection()
         query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{database_name}';"

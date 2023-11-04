@@ -2,9 +2,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackContext
 
 from database import (
-    create_db_connection, execute_sql_query, get_database_list,
-    get_active_sessions, terminate_all_sessions, get_sessions_with_lwlock,
-    get_longest_transaction_duration
+    get_database_list, get_active_sessions, kill_all_sessions,
+    get_sessions_with_lwlock, get_longest_transaction_duration
 )
 from utils import get_cpu_usage, get_disk_space_info
 
@@ -59,7 +58,6 @@ async def check_disk_space(context: CallbackContext, min_disk_space=1):
 async def select_option(update: Update, context: CallbackContext):
     query = update.callback_query
     global selected_database, selected_metric
-
     if query.data.startswith('select_db:'):
         selected_database = query.data.split(':')[1]
         back_button = InlineKeyboardButton('Back', callback_data='back_db')
@@ -161,14 +159,8 @@ async def database(update: Update, context: CallbackContext):
 
 async def kill(update: Update, context: CallbackContext):
     if selected_database:
-        try:
-            connection = create_db_connection()
-            query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{selected_database}';"
-            execute_sql_query(connection, query)
-            await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
-        except Exception as e:
-
-            await update.message.reply_text(f'An error occurred while terminating sessions.')
+        kill_all_sessions(selected_database)
+        await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
     else:
         await update.message.reply_text('Please select a database first.')
 
