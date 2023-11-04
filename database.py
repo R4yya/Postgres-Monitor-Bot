@@ -24,8 +24,11 @@ def create_db_connection():
 
 def execute_sql_query(connection, query):
     with connection, connection.cursor() as cursor:
-        cursor.execute(query)
-        return cursor.fetchall()
+        try:
+            cursor.execute(query)
+            return cursor.fetchall()
+        except Exception as e:
+            logging.error(f'An error occurred: {str(e)}')
 
 
 def get_database_list():
@@ -41,7 +44,7 @@ def get_database_list():
     except Exception as e:
         logging.error(f'An error occurred: {str(e)}')
 
-        return f'An error occurred while retrieving database list.'
+        return 'An error occurred while retrieving database list.'
 
 
 def get_active_sessions(database_name):
