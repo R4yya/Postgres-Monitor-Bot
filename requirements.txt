@@ -1,0 +1,4 @@
+psutil==5.9.6
+psycopg2==2.9.7
+python-dotenv==1.0.0
+python-telegram-bot==20.6
