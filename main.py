@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 from telegram_bot import (
     start, metrics, database,
-    terminate_all_sessions, cpu, disk,
+    kill, cpu, disk,
     unknown, select_option
 )
 
@@ -27,7 +27,7 @@ def main():
     metrics_handler = CommandHandler('metrics', metrics)
     application.add_handler(metrics_handler)
 
-    terminate_sessions_handler = CommandHandler('kill', terminate_all_sessions)
+    terminate_sessions_handler = CommandHandler('kill', kill)
     application.add_handler(terminate_sessions_handler)
 
     cpu_handler = CommandHandler('cpu', cpu)
