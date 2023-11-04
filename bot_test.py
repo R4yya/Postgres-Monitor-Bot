@@ -5,7 +5,7 @@ import psutil
 import os
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, filters
 
 # Logger
 logging.basicConfig(
@@ -186,6 +186,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def unknown(update: Update, context: CallbackContext):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+
+
 async def stats(update: Update, context: CallbackContext):
     database_list = get_database_list()
     if database_list:
@@ -214,6 +218,9 @@ if __name__ == '__main__':
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
+
+    unknown_handler = MessageHandler(filters.Command(False), unknown)
+    application.add_handler(unknown_handler)
 
     monitor_handler = CommandHandler('stats', stats)
     application.add_handler(monitor_handler)
