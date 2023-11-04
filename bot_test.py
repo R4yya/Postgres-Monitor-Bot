@@ -25,7 +25,7 @@ def create_db_connection():
             password=os.getenv('PASSWORD')
         )
     except Exception as e:
-        print(str(e))
+        logging.error("An error occurred: %s", str(e))
 
 
 def execute_sql_query(connection, query):
@@ -46,7 +46,7 @@ def get_database_list():
             return []
 
     except Exception as e:
-        print(str(e))
+        logging.error("An error occurred: %s", str(e))
 
 
 def get_active_sessions(database_name):
@@ -61,7 +61,7 @@ def get_active_sessions(database_name):
             return 0
 
     except Exception as e:
-        print(str(e))
+        logging.error("An error occurred: %s", str(e))
 
 
 def get_sessions_with_lwlock(database_name):
@@ -76,7 +76,23 @@ def get_sessions_with_lwlock(database_name):
             return 0
 
     except Exception as e:
-        print(str(e))
+        logging.error("An error occurred: %s", str(e))
+
+
+def get_longest_transaction_duration(database_name):
+    try:
+        connection = create_db_connection()
+        query = f"SELECT max(now() - pg_stat_activity.query_start) AS longest_transaction_duration FROM pg_stat_activity WHERE datname = '{database_name}';"
+        result = execute_sql_query(connection, query)
+
+        if result:
+            return result[0][0]
+        else:
+            return "No active transactions found."
+
+    except Exception as e:
+        logging.error("An error occurred: %s", str(e))
+        return f"An error occurred while retrieving transaction information. {e}"
 
 
 def create_database_buttons(database_list):
@@ -93,6 +109,7 @@ def create_metrics_menu():
     metrics_menu = InlineKeyboardMarkup([
         [InlineKeyboardButton("Active Sessions", callback_data="active_sessions")],
         [InlineKeyboardButton("Sessions with LWLock", callback_data="sessions_with_lwlock")],
+        [InlineKeyboardButton("Longest Transaction Duration", callback_data="longest_transaction_duration")],
         [InlineKeyboardButton("Back", callback_data="back")]
     ])
     return metrics_menu
@@ -130,6 +147,15 @@ async def select_option(update: Update, context: CallbackContext):
         if selected_database:
             sessions_with_lwlock_count = get_sessions_with_lwlock(selected_database)
             message = f"Sessions with LWLock in {selected_database}: {sessions_with_lwlock_count}"
+            back_button = InlineKeyboardButton("Back", callback_data="back")
+            await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
+        else:
+            await query.message.edit_text("Please select a database first.")
+    elif query.data == "longest_transaction_duration":
+        selected_metric = query.data
+        if selected_database:
+            longest_transaction_duration = get_longest_transaction_duration(selected_database)
+            message = f"Longest transaction duration in {selected_database}: {longest_transaction_duration}"
             back_button = InlineKeyboardButton("Back", callback_data="back")
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
