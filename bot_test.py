@@ -260,7 +260,7 @@ async def cpu(update: Update, context: CallbackContext):
 
 
 async def disk(update: Update, context: CallbackContext):
-    disk_space = get_disk_free_space()[0]
+    disk_space = get_disk_free_space()
     await update.message.reply_text(f'Free disk space: {disk_space:.2f} GB')
 
 
