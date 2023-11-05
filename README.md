@@ -9,6 +9,8 @@ With this bot, you can select specific databases and access statistics on:
 - Longest transaction duration
 
 This allows you to have detailed insights into the performance and activity of your PostgreSQL databases.
+## Preview
+![app preview](screenshots/preview1.jpg)
 
 ## Tech
 - [Python](https://www.python.org/)
