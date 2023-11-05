@@ -1,6 +1,6 @@
 from psycopg2 import connect
 from logging import (
-    basicConfig, INFO, error,
+    INFO, error,
     FileHandler, Formatter, getLogger
 )
 from os import getenv
@@ -72,11 +72,21 @@ def kill_all_sessions(database_name):
         connection = create_db_connection()
         query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{database_name}';"
         execute_sql_query(connection, query)
-        return f'All sessions in {database_name} have been terminated.'
     except Exception as e:
         error(f'An error occurred: {str(e)}')
 
-        return f'An error occurred while terminating sessions.'
+
+def execute_checkpoint_restart(database_name):
+    try:
+        connection = create_db_connection()
+
+        checkpoint_query = 'CHECKPOINT;'
+        execute_sql_query(connection, checkpoint_query)
+
+        restart_query = f'SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = {database_name};'
+        execute_sql_query(connection, restart_query)
+    except Exception as e:
+        error(f'An error occurred: {str(e)}')
 
 
 def get_sessions_with_lwlock(database_name):

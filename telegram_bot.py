@@ -1,11 +1,16 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram import (
+    Update, InlineKeyboardButton, InlineKeyboardMarkup,
+    InputFile
+)
 from telegram.ext import ContextTypes, CallbackContext
 
 from database import (
     get_database_list, get_active_sessions, kill_all_sessions,
-    get_sessions_with_lwlock, get_longest_transaction_duration
+    execute_checkpoint_restart, get_sessions_with_lwlock,
+    get_longest_transaction_duration
 )
 from utils import get_cpu_usage, get_disk_space_info, get_virtual_memory_info
+from subprocess import run, CalledProcessError
 
 
 # Global variables
@@ -39,9 +44,9 @@ async def check_active_sessions(context: CallbackContext, max_active_sessions=10
     if selected_database:
         active_sessions_count = get_active_sessions(selected_database)
         if active_sessions_count > max_active_sessions:
-            await context.bot.send_message(context.job.chat_id, f'Too many active sessions in the database! - {active_sessions_count}')
+            await context.bot.send_message(context.job.chat_id, f'Too many active sessions in the database! - {active_sessions_count}.\n\nYou can use /kill command to kill selected active session')
     else:
-        await context.bot.send_message(context.job.chat_id, f"Can't monitor active sessions: database not selected")
+        await context.bot.send_message(context.job.chat_id, f"Can't monitor active sessions: database not selected.\n\n Use /database command to select database.")
 
 
 async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
@@ -68,7 +73,7 @@ async def select_option(update: Update, context: CallbackContext):
     if query.data.startswith('select_db:'):
         selected_database = query.data.split(':')[1]
         back_button = InlineKeyboardButton('Back', callback_data='back_db')
-        await query.message.edit_text(f'Database selected! {selected_database}', reply_markup=InlineKeyboardMarkup([[back_button]]))
+        await query.message.edit_text(f'Database {selected_database} selected!', reply_markup=InlineKeyboardMarkup([[back_button]]))
     elif query.data == 'back':
         if selected_metric:
             selected_metric = None
@@ -88,7 +93,7 @@ async def select_option(update: Update, context: CallbackContext):
             back_button = InlineKeyboardButton('Back', callback_data='back')
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
-            await query.message.edit_text('Please select a database first.')
+            await query.message.edit_text('Please select a database first.\n\n Use /database command to select database.')
     elif query.data == 'sessions_with_lwlock':
         selected_metric = query.data
         if selected_database:
@@ -97,7 +102,7 @@ async def select_option(update: Update, context: CallbackContext):
             back_button = InlineKeyboardButton('Back', callback_data='back')
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
-            await query.message.edit_text('Please select a database first.')
+            await query.message.edit_text('Please select a database first.\n\n Use /database command to select database.')
     elif query.data == 'longest_transaction_duration':
         selected_metric = query.data
         if selected_database:
@@ -106,7 +111,7 @@ async def select_option(update: Update, context: CallbackContext):
             back_button = InlineKeyboardButton('Back', callback_data='back')
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
-            await query.message.edit_text('Please select a database first.')
+            await query.message.edit_text('Please select a database first.\n\n Use /database command to select database.')
     else:
         await context.bot.send_message(context.job.chat_id, f'{selected_database}')
 
@@ -148,10 +153,10 @@ async def unknown(update: Update, context: CallbackContext):
     if selected_database:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Sorry, I didn't understand that command."
+            text="Sorry, I didn't understand that command. Use /help view commands."
         )
     else:
-        await update.message.reply_text('Please select a database first.')
+        await update.message.reply_text('Please select a database first.\n\n Use /database command to select database.')
 
 
 async def metrics(update: Update, context: CallbackContext):
@@ -176,7 +181,15 @@ async def kill(update: Update, context: CallbackContext):
         kill_all_sessions(selected_database)
         await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
     else:
-        await update.message.reply_text('Please select a database first.')
+        await update.message.reply_text('Please select a database first.\n\n Use /database command to select database.')
+
+
+async def checkpoint_and_restart(update: Update, context: CallbackContext):
+    if selected_database:
+        execute_checkpoint_restart(selected_database)
+        await update.message.reply_text('Checkpoint executed, and the database has been restarted.')
+    else:
+        await update.message.reply_text('Please select a database first.\n\n Use /database command to select database.')
 
 
 async def cpu(update: Update, context: CallbackContext):
