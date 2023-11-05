@@ -1,13 +1,22 @@
 from psycopg2 import connect
-import logging
+from logging import (
+    basicConfig, INFO, error, 
+    FileHandler, Formatter, getLogger
+)
 from os import getenv
 
 
 # Logger
-logging.basicConfig(
+basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=INFO
 )
+
+file_handler = FileHandler('PostgreMonitorBot.log')
+file_handler.setLevel(INFO)
+log_formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(log_formatter)
+getLogger('').addHandler(file_handler)
 
 
 def create_db_connection():
@@ -19,7 +28,7 @@ def create_db_connection():
             password=getenv('PASSWORD')
         )
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
 
 
 def execute_sql_query(connection, query):
@@ -28,7 +37,7 @@ def execute_sql_query(connection, query):
             cursor.execute(query)
             return cursor.fetchall()
         except Exception as e:
-            logging.error(f'An error occurred: {str(e)}')
+            error(f'An error occurred: {str(e)}')
 
 
 def get_database_list():
@@ -42,7 +51,7 @@ def get_database_list():
         else:
             return []
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
 
         return 'An error occurred while retrieving database list.'
 
@@ -58,7 +67,7 @@ def get_active_sessions(database_name):
         else:
             return 0
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
 
         return f'An error occurred while retrieving session information.'
 
@@ -70,7 +79,7 @@ def kill_all_sessions(database_name):
         execute_sql_query(connection, query)
         return f'All sessions in {database_name} have been terminated.'
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
         return f'An error occurred while terminating sessions.'
 
 
@@ -85,7 +94,7 @@ def get_sessions_with_lwlock(database_name):
         else:
             return 0
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
 
         return f'An error occurred while retrieving session information.'
 
@@ -101,6 +110,6 @@ def get_longest_transaction_duration(database_name):
         else:
             return 'No active transactions found.'
     except Exception as e:
-        logging.error(f'An error occurred: {str(e)}')
+        error(f'An error occurred: {str(e)}')
 
         return f'An error occurred while retrieving transaction information.'
