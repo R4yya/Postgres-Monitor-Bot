@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import ContextTypes, CallbackContext
 
 from database import (
@@ -181,7 +181,7 @@ async def kill(update: Update, context: CallbackContext):
 
 async def cpu(update: Update, context: CallbackContext):
     cpu_percentage = get_cpu_usage()
-    await update.message.reply_text(f'CPU information:\nCPU usage: {cpu_percentage}%')
+    await update.message.reply_text(f'*CPU information:*\n\tCPU usage: {cpu_percentage}%')
 
 
 async def disk(update: Update, context: CallbackContext):
@@ -192,3 +192,9 @@ async def disk(update: Update, context: CallbackContext):
 async def ram(update: Update, context: CallbackContext):
     available_memory, total_memory, percent_memory = get_virtual_memory_info()
     await update.message.reply_text(f'*RAM information:*\n\tAvailable: {available_memory:.2f} GB\n\tTotal: {total_memory:.2f} GB\n\tUsage: {percent_memory}%', parse_mode= 'Markdown')
+
+
+async def send_log(update: Update, context: CallbackContext):
+    log_file_path = 'PostgreMonitorBot.log'
+    with open(log_file_path, 'rb') as log_file:
+        await context.bot.send_document(chat_id=update.message.chat_id, document=InputFile(log_file))

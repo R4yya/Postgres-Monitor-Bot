@@ -8,7 +8,8 @@ from telegram.ext import (
 from telegram_bot import (
     start, metrics, database,
     kill, cpu, disk,
-    ram, unknown, select_option
+    ram, unknown, select_option,
+    send_log
 )
 
 
@@ -27,8 +28,8 @@ def main():
     metrics_handler = CommandHandler('metrics', metrics)
     application.add_handler(metrics_handler)
 
-    terminate_sessions_handler = CommandHandler('kill', kill)
-    application.add_handler(terminate_sessions_handler)
+    kill_handler = CommandHandler('kill', kill)
+    application.add_handler(kill_handler)
 
     cpu_handler = CommandHandler('cpu', cpu)
     application.add_handler(cpu_handler)
@@ -38,6 +39,9 @@ def main():
 
     ram_handler = CommandHandler('ram', ram)
     application.add_handler(ram_handler)
+
+    log_handler = CommandHandler('sendlog', send_log)
+    application.add_handler(log_handler)
 
     unknown_handler = MessageHandler(filters.Command(False), unknown)
     application.add_handler(unknown_handler)
