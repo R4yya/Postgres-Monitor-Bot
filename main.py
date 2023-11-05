@@ -7,9 +7,9 @@ from telegram.ext import (
 )
 from telegram_bot import (
     start, metrics, database,
-    kill, checkpoint_and_restart, cpu,
-    disk, ram, unknown,
-    select_option, send_log
+    list_active_sessions, kill_session, checkpoint_and_restart,
+    cpu, disk, ram,
+    unknown, select_option, send_log
 )
 
 
@@ -30,7 +30,10 @@ def main():
     metrics_handler = CommandHandler('metrics', metrics)
     application.add_handler(metrics_handler)
 
-    kill_handler = CommandHandler('kill', kill)
+    list_active_sessions_handler = CommandHandler('activesessions', list_active_sessions)
+    application.add_handler(list_active_sessions_handler)
+
+    kill_handler = CommandHandler('kill', kill_session)
     application.add_handler(kill_handler)
 
     restart_database_handler = CommandHandler('checkpointrestart', checkpoint_and_restart)
