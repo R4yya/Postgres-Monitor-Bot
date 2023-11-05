@@ -49,7 +49,7 @@ async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
         await context.bot.send_message(context.job.chat_id, f'*Warning, high CPU usage!* - {max_cpu_usage}%', parse_mode= 'Markdown')
 
 
-async def check_ram_usage(context: CallbackContext, max_ram_usage=10):
+async def check_ram_usage(context: CallbackContext, max_ram_usage=95):
     available_memory, total_memory, percent_memory = get_virtual_memory_info()
     if percent_memory > max_ram_usage:
         await context.bot.send_message(context.job.chat_id, f'*Warning, high RAM usage!* - {percent_memory}%', parse_mode= 'Markdown')

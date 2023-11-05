@@ -1,4 +1,4 @@
-import psycopg2
+from psycopg2 import connect
 import logging
 from os import getenv
 
@@ -12,7 +12,7 @@ logging.basicConfig(
 
 def create_db_connection():
     try:
-        return psycopg2.connect(
+        return connect(
             host=getenv('HOST'),
             database=getenv('DATABASE_NAME'),
             user=getenv('USER'),
