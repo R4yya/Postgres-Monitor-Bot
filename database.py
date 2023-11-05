@@ -1,6 +1,6 @@
 from psycopg2 import connect
 from logging import (
-    basicConfig, INFO, error, 
+    basicConfig, INFO, error,
     FileHandler, Formatter, getLogger
 )
 from os import getenv
