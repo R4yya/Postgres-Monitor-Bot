@@ -10,7 +10,6 @@ from database import (
     get_longest_transaction_duration
 )
 from utils import get_cpu_usage, get_disk_space_info, get_virtual_memory_info
-from subprocess import run, CalledProcessError
 
 
 # Global variables

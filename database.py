@@ -29,6 +29,7 @@ def create_db_connection():
 def execute_sql_query(connection, query):
     with connection, connection.cursor() as cursor:
         try:
+            cursor.execute("SET application_name = 'PostgreMonitorBot'")
             cursor.execute(query)
             return cursor.fetchall()
         except Exception as e:
