@@ -46,13 +46,19 @@ async def check_active_sessions(context: CallbackContext, max_active_sessions=10
 async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
     cpu_percentage = get_cpu_usage()
     if cpu_percentage > max_cpu_usage:
-        await context.bot.send_message(context.job.chat_id, f'High CPU usage! - {max_cpu_usage}%')
+        await context.bot.send_message(context.job.chat_id, f'*Warning, high CPU usage!* - {max_cpu_usage}%', parse_mode= 'Markdown')
+
+
+async def check_ram_usage(context: CallbackContext, max_ram_usage=10):
+    available_memory, total_memory, percent_memory = get_virtual_memory_info()
+    if percent_memory > max_ram_usage:
+        await context.bot.send_message(context.job.chat_id, f'*Warning, high RAM usage!* - {percent_memory}%', parse_mode= 'Markdown')
 
 
 async def check_disk_space(context: CallbackContext, min_disk_space=1):
     free_space, total_space, percentage_space = get_disk_space_info()
     if free_space < min_disk_space:
-        await context.bot.send_message(context.job.chat_id, f'Low disk space! - {free_space:.2f}Gb')
+        await context.bot.send_message(context.job.chat_id, f'*Warning, low disk space!* - {free_space:.2f}Gb', parse_mode= 'Markdown')
 
 
 async def select_option(update: Update, context: CallbackContext):
@@ -129,6 +135,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.message.chat_id
     )
 
+    context.job_queue.run_repeating(
+        check_ram_usage,
+        interval=15,
+        first=0,
+        chat_id=update.message.chat_id
+    )
+
 
 async def unknown(update: Update, context: CallbackContext):
     if selected_database:
@@ -177,4 +190,4 @@ async def disk(update: Update, context: CallbackContext):
 
 async def ram(update: Update, context: CallbackContext):
     available_memory, total_memory, percent_memory = get_virtual_memory_info()
-    await update.message.reply_text(f'*Memory information:*\n\tAvailable: {available_memory:.2f} GB\n\tTotal: {total_memory:.2f} GB\n\tUsage: {percent_memory}%', parse_mode= 'Markdown')
+    await update.message.reply_text(f'*RAM information:*\n\tAvailable: {available_memory:.2f} GB\n\tTotal: {total_memory:.2f} GB\n\tUsage: {percent_memory}%', parse_mode= 'Markdown')
