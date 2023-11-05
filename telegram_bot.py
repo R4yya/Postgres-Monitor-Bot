@@ -149,6 +149,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def help_command(update: Update, context: CallbackContext):
+    help_text = '''I can help you monitor your PostgreSQL database.
+
+You can control me by sending these commands:
+
+/start - start the bot
+/help - view help
+
+*Database commands*
+/database - select a database
+/metrics - view metrics in the selected database
+/checkpointrestart - use checkpoint command and then restart the database
+
+*Sessions commands*
+/activesessions - get a list of active sessions in the selected database
+/kill - type session PID to terminate a session in the selected database
+
+*Resource commands*
+/cpu - get CPU usage info
+/disk - get disk space info
+/ram - get RAM usage info
+
+*Bot debugging commands*
+/sendlog - get the bot's .log file
+    '''
+    await update.message.reply_text(help_text, parse_mode='Markdown')
+
+
 async def unknown(update: Update, context: CallbackContext):
     if selected_database:
         await context.bot.send_message(

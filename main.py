@@ -6,10 +6,11 @@ from telegram.ext import (
     MessageHandler, filters
 )
 from telegram_bot import (
-    start, metrics, database,
-    list_active_sessions, kill_session, checkpoint_and_restart,
-    cpu, disk, ram,
-    unknown, select_option, send_log
+    start, help_command, metrics,
+    database, list_active_sessions, kill_session,
+    checkpoint_and_restart, cpu, disk,
+    ram, unknown, select_option,
+    send_log
 )
 
 
@@ -23,6 +24,9 @@ def main():
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
+
+    help_handler = CommandHandler('help', help_command)
+    application.add_handler(help_handler)
 
     database_handler = CommandHandler('database', database)
     application.add_handler(database_handler)
