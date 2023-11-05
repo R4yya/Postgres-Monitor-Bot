@@ -17,6 +17,8 @@ def main():
     # load .env variables
     load_dotenv()
 
+    print('PostgreMonitorBot started')
+
     application = ApplicationBuilder().token(getenv('API_TOKEN')).build()
 
     start_handler = CommandHandler('start', start)
@@ -48,6 +50,8 @@ def main():
 
     select_option_handler = CallbackQueryHandler(select_option)
     application.add_handler(select_option_handler)
+
+    print('Polling...')
 
     application.run_polling()
 

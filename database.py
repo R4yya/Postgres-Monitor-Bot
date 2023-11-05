@@ -7,11 +7,6 @@ from os import getenv
 
 
 # Logger
-basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=INFO
-)
-
 file_handler = FileHandler('PostgreMonitorBot.log')
 file_handler.setLevel(INFO)
 log_formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -80,6 +75,7 @@ def kill_all_sessions(database_name):
         return f'All sessions in {database_name} have been terminated.'
     except Exception as e:
         error(f'An error occurred: {str(e)}')
+
         return f'An error occurred while terminating sessions.'
 
 
