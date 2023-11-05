@@ -7,6 +7,7 @@ from database import (
 )
 from utils import get_cpu_usage, get_disk_space_info, get_virtual_memory_info
 
+
 # Global variables
 selected_database = None
 selected_metric = None
