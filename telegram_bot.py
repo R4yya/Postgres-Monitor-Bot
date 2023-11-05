@@ -1,34 +1,35 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import ContextTypes, CallbackContext
 
 from database import (
-    create_db_connection, execute_sql_query, get_database_list,
-    get_active_sessions, terminate_all_sessions, get_sessions_with_lwlock,
-    get_longest_transaction_duration
-
+    get_database_list, get_active_sessions, kill_all_sessions,
+    get_sessions_with_lwlock, get_longest_transaction_duration
 )
-from utils import get_cpu_usage, get_disk_free_space
+from utils import get_cpu_usage, get_disk_space_info, get_virtual_memory_info
 
 
-def create_database_buttons(database_list):
-    buttons = []
+# Global variables
+selected_database = None
+selected_metric = None
 
+
+def create_database_menu(database_list):
+    database_menu = []
     for database in database_list:
         button = InlineKeyboardButton(
             database,
             callback_data=f'select_db:{database}'
         )
-        buttons.append([button])
+        database_menu.append([button])
 
-    return InlineKeyboardMarkup(buttons)
+    return InlineKeyboardMarkup(database_menu)
 
 
 def create_metrics_menu():
     metrics_menu = InlineKeyboardMarkup([
         [InlineKeyboardButton('Active Sessions', callback_data='active_sessions')],
         [InlineKeyboardButton('Sessions with LWLock', callback_data='sessions_with_lwlock')],
-        [InlineKeyboardButton('Longest Transaction Duration', callback_data='longest_transaction_duration')],
-        [InlineKeyboardButton('Back', callback_data='back')]
+        [InlineKeyboardButton('Longest Transaction Duration', callback_data='longest_transaction_duration')]
     ])
 
     return metrics_menu
@@ -39,38 +40,46 @@ async def check_active_sessions(context: CallbackContext, max_active_sessions=10
         active_sessions_count = get_active_sessions(selected_database)
         if active_sessions_count > max_active_sessions:
             await context.bot.send_message(context.job.chat_id, f'Too many active sessions in the database! - {active_sessions_count}')
+    else:
+        await context.bot.send_message(context.job.chat_id, f"Can't monitor active sessions: database not selected")
 
 
 async def check_cpu_usage(context: CallbackContext, max_cpu_usage=90):
     cpu_percentage = get_cpu_usage()
     if cpu_percentage > max_cpu_usage:
-        await context.bot.send_message(context.job.chat_id, f'High CPU usage! - {max_cpu_usage}%')
+        await context.bot.send_message(context.job.chat_id, f'*Warning, high CPU usage!* - {max_cpu_usage}%', parse_mode= 'Markdown')
+
+
+async def check_ram_usage(context: CallbackContext, max_ram_usage=95):
+    available_memory, total_memory, percent_memory = get_virtual_memory_info()
+    if percent_memory > max_ram_usage:
+        await context.bot.send_message(context.job.chat_id, f'*Warning, high RAM usage!* - {percent_memory}%', parse_mode= 'Markdown')
 
 
 async def check_disk_space(context: CallbackContext, min_disk_space=1):
-    disk_space = get_disk_free_space()
-    if disk_space < min_disk_space:
-        await context.bot.send_message(context.job.chat_id, f'Low disk space! - {disk_space:.2f}Gb')
+    free_space, total_space, percentage_space = get_disk_space_info()
+    if free_space < min_disk_space:
+        await context.bot.send_message(context.job.chat_id, f'*Warning, low disk space!* - {free_space:.2f}Gb', parse_mode= 'Markdown')
 
 
 async def select_option(update: Update, context: CallbackContext):
     query = update.callback_query
     global selected_database, selected_metric
-
     if query.data.startswith('select_db:'):
         selected_database = query.data.split(':')[1]
-        metrics_menu = create_metrics_menu()
-        await query.message.edit_text('Select a metric:', reply_markup=metrics_menu)
+        back_button = InlineKeyboardButton('Back', callback_data='back_db')
+        await query.message.edit_text(f'Database selected! {selected_database}', reply_markup=InlineKeyboardMarkup([[back_button]]))
     elif query.data == 'back':
         if selected_metric:
             selected_metric = None
             metrics_menu = create_metrics_menu()
             await query.message.edit_text('Select a metric:', reply_markup=metrics_menu)
-        else:
+    elif query.data == 'back_db':
+        if selected_database:
             selected_database = None
             database_list = get_database_list()
-            buttons = create_database_buttons(database_list)
-            await query.message.edit_text('Select a database:', reply_markup=buttons)
+            database_menu = create_database_menu(database_list)
+            await query.message.edit_text('Select database:', reply_markup=database_menu)
     elif query.data == 'active_sessions':
         selected_metric = query.data
         if selected_database:
@@ -98,6 +107,8 @@ async def select_option(update: Update, context: CallbackContext):
             await query.message.edit_text(message, reply_markup=InlineKeyboardMarkup([[back_button]]))
         else:
             await query.message.edit_text('Please select a database first.')
+    else:
+        await context.bot.send_message(context.job.chat_id, f'{selected_database}')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -125,43 +136,65 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.message.chat_id
     )
 
-
-async def unknown(update: Update, context: CallbackContext):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Sorry, I didn't understand that command."
+    context.job_queue.run_repeating(
+        check_ram_usage,
+        interval=15,
+        first=0,
+        chat_id=update.message.chat_id
     )
 
 
-async def stats(update: Update, context: CallbackContext):
+async def unknown(update: Update, context: CallbackContext):
+    if selected_database:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Sorry, I didn't understand that command."
+        )
+    else:
+        await update.message.reply_text('Please select a database first.')
+
+
+async def metrics(update: Update, context: CallbackContext):
+    metrics_menu = create_metrics_menu()
+    await update.message.reply_text('Select a metric:', reply_markup=metrics_menu)
+
+
+async def database(update: Update, context: CallbackContext):
     database_list = get_database_list()
     if database_list:
-        message = 'Select a database:'
-        buttons = create_database_buttons(database_list)
-        await update.message.reply_text(message, reply_markup=buttons)
+        if database_list != 'An error occurred while retrieving database list.':
+            database_menu = create_database_menu(database_list)
+            await update.message.reply_text('Select a database:', reply_markup=database_menu)
+        else:
+            await update.message.reply_text(f'{database_list}')
     else:
         await update.message.reply_text('No databases found.')
 
 
-async def terminate_all_sessions(update: Update, context: CallbackContext):
+async def kill(update: Update, context: CallbackContext):
     if selected_database:
-        try:
-            connection = create_db_connection()
-            query = f"SELECT pg_terminate_backend (pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = '{selected_database}';"
-            execute_sql_query(connection, query)
-            await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
-        except Exception as e:
-            logging.error(f'An error occurred: {str(e)}')
-            await update.message.reply_text(f'An error occurred while terminating sessions.')
+        kill_all_sessions(selected_database)
+        await update.message.reply_text(f'All sessions in {selected_database} have been terminated.')
     else:
         await update.message.reply_text('Please select a database first.')
 
 
 async def cpu(update: Update, context: CallbackContext):
     cpu_percentage = get_cpu_usage()
-    await update.message.reply_text(f'CPU usage: {cpu_percentage}%')
+    await update.message.reply_text(f'*CPU information:*\n\tCPU usage: {cpu_percentage}%')
 
 
 async def disk(update: Update, context: CallbackContext):
-    disk_space = get_disk_free_space()
-    await update.message.reply_text(f'Free disk space: {disk_space:.2f} GB')
+    free_space, total_space, percentage_space = get_disk_space_info()
+    await update.message.reply_text(f'*Disk space:*\n\tFree: {free_space:.2f} GB\n\tTotal: {total_space:.2f} GB\n\tUsage: {percentage_space}%', parse_mode= 'Markdown')
+
+
+async def ram(update: Update, context: CallbackContext):
+    available_memory, total_memory, percent_memory = get_virtual_memory_info()
+    await update.message.reply_text(f'*RAM information:*\n\tAvailable: {available_memory:.2f} GB\n\tTotal: {total_memory:.2f} GB\n\tUsage: {percent_memory}%', parse_mode= 'Markdown')
+
+
+async def send_log(update: Update, context: CallbackContext):
+    log_file_path = 'PostgreMonitorBot.log'
+    with open(log_file_path, 'rb') as log_file:
+        await context.bot.send_document(chat_id=update.message.chat_id, document=InputFile(log_file))

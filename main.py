@@ -6,31 +6,32 @@ from telegram.ext import (
     MessageHandler, filters
 )
 from telegram_bot import (
-    start, stats, terminate_all_sessions,
-    cpu, disk, unknown,
-    select_option
+    start, metrics, database,
+    kill, cpu, disk,
+    ram, unknown, select_option,
+    send_log
 )
-
-
-# Global variables
-selected_database = None
-selected_metric = None
 
 
 def main():
     # load .env variables
     load_dotenv()
 
+    print('PostgreMonitorBot started')
+
     application = ApplicationBuilder().token(getenv('API_TOKEN')).build()
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
 
-    monitor_handler = CommandHandler('stats', stats)
-    application.add_handler(monitor_handler)
+    database_handler = CommandHandler('database', database)
+    application.add_handler(database_handler)
 
-    terminate_sessions_handler = CommandHandler('kill', terminate_all_sessions)
-    application.add_handler(terminate_sessions_handler)
+    metrics_handler = CommandHandler('metrics', metrics)
+    application.add_handler(metrics_handler)
+
+    kill_handler = CommandHandler('kill', kill)
+    application.add_handler(kill_handler)
 
     cpu_handler = CommandHandler('cpu', cpu)
     application.add_handler(cpu_handler)
@@ -38,11 +39,19 @@ def main():
     disk_handler = CommandHandler('disk', disk)
     application.add_handler(disk_handler)
 
+    ram_handler = CommandHandler('ram', ram)
+    application.add_handler(ram_handler)
+
+    log_handler = CommandHandler('sendlog', send_log)
+    application.add_handler(log_handler)
+
     unknown_handler = MessageHandler(filters.Command(False), unknown)
     application.add_handler(unknown_handler)
 
     select_option_handler = CallbackQueryHandler(select_option)
     application.add_handler(select_option_handler)
+
+    print('Polling...')
 
     application.run_polling()
 
